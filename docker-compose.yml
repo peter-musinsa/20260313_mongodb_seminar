@@ -1,0 +1,49 @@
+services:
+  jupyter:
+    image: jupyter/base-notebook:python-3.11
+    ports:
+      - "8888:8888"
+    volumes:
+      - .:/home/jovyan/work
+    working_dir: /home/jovyan/work
+    environment:
+      - MONGODB_URI=mongodb://admin:mongodb@mongodb:27017/
+      - PROXY_ENDPOINT=https://vtqjvgchmwcjwsrela2oyhlegu0hwqnw.lambda-url.us-west-2.on.aws/
+      - PASSKEY=${PASSKEY}
+      - VOYAGE_API_KEY=${VOYAGE_API_KEY}
+      - JUPYTER_ENABLE_LAB=yes
+    env_file:
+      - .env
+    command: >
+      bash -c "pip install -r requirements.txt --quiet &&
+               start-notebook.sh --NotebookApp.token='' --NotebookApp.password=''"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - mongo-net
+
+  mongodb:
+    image: mongodb/mongodb-atlas-local:latest
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGODB_INITDB_ROOT_USERNAME=admin
+      - MONGODB_INITDB_ROOT_PASSWORD=mongodb
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - mongo-net
+
+volumes:
+  mongodb_data:
+
+networks:
+  mongo-net:
